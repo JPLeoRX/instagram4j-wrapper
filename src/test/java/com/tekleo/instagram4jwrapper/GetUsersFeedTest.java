@@ -4,18 +4,18 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.log4j.Logger;
 import org.brunocvcunha.instagram4j.Instagram4j;
 import org.brunocvcunha.instagram4j.requests.InstagramSearchUsernameRequest;
-import org.brunocvcunha.instagram4j.requests.payload.InstagramLoggedUser;
-import org.brunocvcunha.instagram4j.requests.payload.InstagramLoginResult;
-import org.brunocvcunha.instagram4j.requests.payload.InstagramSearchUsernameResult;
-import org.brunocvcunha.instagram4j.requests.payload.InstagramUser;
+import org.brunocvcunha.instagram4j.requests.InstagramUserFeedRequest;
+import org.brunocvcunha.instagram4j.requests.payload.*;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
-public class SearchUserTest {
-    private static final Logger LOGGER = Logger.getLogger(SearchUserTest.class);
+public class GetUsersFeedTest {
+    private static final Logger LOGGER = Logger.getLogger(GetUsersFeedTest.class);
     private static final String USERNAME = "jpleorx1234";
     private static final String PASSWORD = "admin1234";
     private static final String SEARCHED_USERNAME = "jpleorx";
@@ -25,16 +25,19 @@ public class SearchUserTest {
         // Login
         Instagram4j instagram4j = this.login();
 
+        // Find user
+        InstagramUser user = findUser(instagram4j, SEARCHED_USERNAME);
+
         // Boolean values to test if exceptions will be caught
         boolean clientProtocolExceptionCaught = false;
         boolean ioExceptionCaught = false;
 
         // Initialize search result
-        InstagramSearchUsernameResult searchUsernameResult = null;
+        InstagramFeedResult feedResult = null;
 
         // Try to find user and catch all errors
         try {
-            searchUsernameResult = instagram4j.sendRequest(new InstagramSearchUsernameRequest(SEARCHED_USERNAME));
+            feedResult = instagram4j.sendRequest(new InstagramUserFeedRequest(user.getPk()));
         } catch (ClientProtocolException e) {
             clientProtocolExceptionCaught = true;
             e.printStackTrace();
@@ -48,18 +51,24 @@ public class SearchUserTest {
         assertFalse(ioExceptionCaught);
 
         // Make sure that search was successful
-        assertNotNull(searchUsernameResult);
-        LOGGER.info("searchUsernameResult=" + searchUsernameResult);
+        assertNotNull(feedResult);
+        LOGGER.info("feedResult=" + feedResult);
 
-        // Extract found user
-        InstagramUser foundUser = searchUsernameResult.getUser();
+        // Extract feed items
+        List<InstagramFeedItem> feedItems = feedResult.getItems();
 
         // Make sure that user was found
-        assertNotNull(foundUser);
-        LOGGER.info("foundUser=" + foundUser);
+        assertNotNull(feedItems);
+        assertFalse(feedItems.isEmpty());
+        LOGGER.info("feedItems=" + feedItems);
 
-        // Make sure that we found a user with correct username
-        assertEquals(SEARCHED_USERNAME, foundUser.getUsername());
+        // Extract one feed items
+        InstagramFeedItem lastFeedItem = feedItems.get(0);
+        LOGGER.info("lastFeedItem=" + lastFeedItem);
+
+        // Extract its caption
+        String caption = (String) lastFeedItem.getCaption().get(CaptionFields.TEXT);
+        LOGGER.info("caption=" + caption);
     }
 
     private static Instagram4j login() {
@@ -78,6 +87,22 @@ public class SearchUserTest {
             LOGGER.info("loggedInUser=" + loggedInUser);
 
             return instagram4j;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private static InstagramUser findUser(Instagram4j instagram4j, String username) {
+        // Try to find user and catch all errors
+        try {
+            InstagramSearchUsernameResult searchUsernameResult = instagram4j.sendRequest(new InstagramSearchUsernameRequest(username));
+            LOGGER.info("searchUsernameResult=" + searchUsernameResult);
+
+            InstagramUser foundUser = searchUsernameResult.getUser();
+            LOGGER.info("foundUser=" + foundUser);
+
+            return foundUser;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
